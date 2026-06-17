@@ -70,6 +70,22 @@ export class AuthService {
             );
         }
 
+        const tokens =
+            await this.generateTokens(user);
+
+        await this.updateRefreshToken(
+            user.id,
+            tokens.refresh_token,
+        );
+
+        return tokens;
+    }
+
+    async generateTokens(user: {
+        id: number;
+        email: string;
+        role: string;
+    }) {
         const payload = {
             userId: user.id,
             email: user.email,
@@ -77,11 +93,101 @@ export class AuthService {
         };
 
         const access_token =
-            this.jwtService.sign(payload);
+            this.jwtService.sign(payload, {
+                secret: process.env.JWT_SECRET,
+                expiresIn: '15m',
+            });
+
+        const refresh_token =
+            this.jwtService.sign(payload, {
+                secret: process.env.JWT_REFRESH_SECRET,
+                expiresIn: '7d',
+            });
 
         return {
-            message: 'Login berhasil',
             access_token,
+            refresh_token,
+        };
+    }
+
+
+    async updateRefreshToken(
+        userId: number,
+        refreshToken: string,
+    ) {
+        const hashedRefreshToken =
+            await bcrypt.hash(
+                refreshToken,
+                10,
+            );
+
+        await this.prisma.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                refreshToken:
+                    hashedRefreshToken,
+            },
+        });
+    }
+
+    async refreshToken(
+        refreshToken: string,
+    ) {
+        try {
+            const payload = this.jwtService.verify(
+                refreshToken,
+                {
+                    secret: process.env.JWT_REFRESH_SECRET,
+                },
+            );
+
+            const user =
+                await this.prisma.user.findUnique({
+                    where: {
+                        id: payload.userId,
+                    },
+                });
+
+            if (!user || !user.refreshToken) {
+                throw new UnauthorizedException(
+                    'Refresh token tidak valid',
+                );
+            }
+
+            const isMatch =
+                await bcrypt.compare(
+                    refreshToken,
+                    user.refreshToken,
+                );
+
+            if (!isMatch) {
+                throw new UnauthorizedException(
+                    'Refresh token tidak valid',
+                );
+            }
+
+            return this.generateTokens(user);
+        } catch {
+            throw new UnauthorizedException(
+                'Refresh token tidak valid',
+            );
+        }
+    }
+
+    async logout(userId: number) {
+        await this.prisma.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                refreshToken: null,
+            },
+        });
+
+        return {
+            message: 'Logout berhasil',
         };
     }
 

@@ -13,6 +13,13 @@ import { RolesGuard }
 import { Roles }
   from '../auth/decorators/roles.decorator';
 
+import {
+  ApiBearerAuth,
+  ApiTags,
+} from '@nestjs/swagger';
+
+@ApiTags('Products')
+@ApiBearerAuth()
 @Controller('products')
 export class ProductsController {
   constructor(
