@@ -1,86 +1,62 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class ProductsService {
 
-  private products = [
-    {
-      id: 1,
-      name: 'Laptop',
-      price: 15000000,
-    },
-    {
-      id: 2,
-      name: 'Mouse',
-      price: 150000,
-    },
-  ];
+  constructor(
+    private readonly prisma: PrismaService
+  ) { }
 
-  findAll() {
-    return this.products;
+  async findAll() {
+    return this.prisma.product.findMany();
   }
 
-  findOne(id: number) {
-    const product = this.products.find(
-      (product) => product.id === id,
-    );
+  async findOne(id: number) {
+
+    const product = await this.prisma.product.findUnique({
+      where: { id }
+    })
 
     if (!product) {
-      throw new NotFoundException(`Product dengan ID ${id} tidak ditemukan`,);
+      throw new NotFoundException(`Product #${id} not found`);
+      
     }
 
     return product;
   }
 
-  create(dto: CreateProductDto) {
-    const newProduct = {
-      id: this.products.length + 1,
-      ...dto,
-    };
+  async create(dto: CreateProductDto) {
+    // const newProduct = {
+    //   ...dto,
+    // };
 
-    this.products.push(newProduct);
+    return this.prisma.product.create({
+      data: {
+        name: dto.name,
+        price: dto.price
+      }
+    });
 
-    return newProduct;
+
   }
 
-  update(
+  async update(
     id: number,
     dto: UpdateProductDto,
   ) {
-    const product = this.products.find(
-      (product) => product.id === id,
-    );
-
-    if (!product) {
-      throw new NotFoundException(
-        `Product dengan ID ${id} tidak ditemukan`,
-      );
-    }
-
-    product.name = dto.name;
-    product.price = dto.price;
-
-    return product;
+    return this.prisma.product.update({
+      where: { id },
+      data: dto,
+    });
   }
 
-  remove(id: number) {
-    const index = this.products.findIndex(
-      (product) => product.id === id,
-    );
-
-    if (index === -1) {
-      throw new NotFoundException(
-        `Product dengan ID ${id} tidak ditemukan`,
-      );
-    }
-
-    const deleted = this.products[index];
-
-    this.products.splice(index, 1);
-
-    return deleted;
+  async remove(id: number) {
+    return this.prisma.product.delete({
+      where: { id },
+    });
   }
 
 }
