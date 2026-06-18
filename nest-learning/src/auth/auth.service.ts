@@ -5,12 +5,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
+        private readonly config: ConfigService,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -94,13 +96,17 @@ export class AuthService {
 
         const access_token =
             this.jwtService.sign(payload, {
-                secret: process.env.JWT_SECRET,
+                secret: this.config.get<string>(
+                    'JWT_SECRET',
+                ),
                 expiresIn: '15m',
             });
 
         const refresh_token =
             this.jwtService.sign(payload, {
-                secret: process.env.JWT_REFRESH_SECRET,
+                secret: this.config.get<string>(
+                    'JWT_REFRESH_SECRET',
+                ),
                 expiresIn: '7d',
             });
 
@@ -139,7 +145,9 @@ export class AuthService {
             const payload = this.jwtService.verify(
                 refreshToken,
                 {
-                    secret: process.env.JWT_REFRESH_SECRET,
+                    secret: this.config.get<string>(
+                        'JWT_REFRESH_SECRET',
+                    ),
                 },
             );
 

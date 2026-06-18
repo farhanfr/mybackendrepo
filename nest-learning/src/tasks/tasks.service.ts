@@ -43,29 +43,82 @@ export class TasksService {
             order = 'desc',
         } = query;
 
-        return this.prisma.task.findMany({
-            where: {
-                userId,
+        const where = {
+            userId,
 
-                ...(search && {
-                    title: {
-                        contains: search,
-                        mode: 'insensitive',
+            ...(search && {
+                title: {
+                    contains: search,
+                    mode: 'insensitive' as const,
+                },
+            }),
+
+            ...(completed !== undefined && {
+                completed: completed === 'true',
+            }),
+        };
+
+        const [tasks, total] =
+            await Promise.all([
+                this.prisma.task.findMany({
+                    where,
+
+                    orderBy: {
+                        [sort]: order,
                     },
+
+                    skip: (page - 1) * limit,
+                    take: limit,
                 }),
 
-                ...(completed !== undefined && {
-                    completed: completed === 'true',
+                this.prisma.task.count({
+                    where,
                 }),
-            },
+            ]);
 
-            orderBy: {
-                [sort]: order,
-            },
+        return {
+            data: tasks,
 
-            skip: (page - 1) * limit,
-            take: limit,
-        });
+            meta: {
+                page,
+                limit,
+                total,
+
+                totalPages: Math.ceil(
+                    total / limit,
+                ),
+
+                hasNextPage:
+                    page * limit < total,
+
+                hasPreviousPage:
+                    page > 1,
+            },
+        };
+
+        // return this.prisma.task.findMany({
+        //     where: {
+        //         userId,
+
+        //         ...(search && {
+        //             title: {
+        //                 contains: search,
+        //                 mode: 'insensitive',
+        //             },
+        //         }),
+
+        //         ...(completed !== undefined && {
+        //             completed: completed === 'true',
+        //         }),
+        //     },
+
+        //     orderBy: {
+        //         [sort]: order,
+        //     },
+
+        //     skip: (page - 1) * limit,
+        //     take: limit,
+        // });
     }
 
     async findOne(
