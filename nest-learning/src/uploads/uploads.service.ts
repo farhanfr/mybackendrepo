@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService }
     from 'src/prisma/prisma.service';
@@ -59,6 +59,59 @@ export class UploadsService {
 
         return {
             avatar: user.avatar,
+        };
+    }
+
+    async deleteAvatar(
+        userId: number,
+    ) {
+        const user =
+            await this.prisma.user.findUnique({
+                where: {
+                    id: userId,
+                },
+            });
+
+        if (!user) {
+            throw new NotFoundException(
+                'User tidak ditemukan',
+            );
+        }
+
+        if (!user.avatar) {
+            throw new NotFoundException(
+                'Avatar tidak ditemukan',
+            );
+        }
+
+        const filePath =
+            path.join(
+                process.cwd(),
+                user.avatar.replace(
+                    '/uploads/',
+                    'uploads/',
+                ),
+            );
+
+        if (
+            fs.existsSync(filePath)
+        ) {
+            fs.unlinkSync(filePath);
+        }
+
+        await this.prisma.user.update({
+            where: {
+                id: userId,
+            },
+
+            data: {
+                avatar: null,
+            },
+        });
+
+        return {
+            message:
+                'Avatar berhasil dihapus',
         };
     }
 }

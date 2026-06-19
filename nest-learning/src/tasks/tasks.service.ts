@@ -1,4 +1,10 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 import { Injectable, NotFoundException } from '@nestjs/common';
+
+import { Response }
+  from 'express';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -125,10 +131,17 @@ export class TasksService {
         taskId: number,
         userId: number,
     ) {
-        return this.findTaskOrThrow(
-            taskId,
-            userId,
-        );
+        return this.prisma.task.findFirst({
+            where: {
+                id: taskId,
+                userId,
+                deletedAt: null,
+            },
+
+            include: {
+                attachments: true,
+            },
+        });
     }
 
     async update(
@@ -261,5 +274,122 @@ export class TasksService {
         }
 
         return task;
+    }
+
+    async uploadAttachments(
+        taskId: number,
+        userId: number,
+        files: Express.Multer.File[],
+    ) {
+
+        await this.findTaskOrThrow(
+            taskId,
+            userId,
+        );
+
+        return this.prisma.taskAttachment.createManyAndReturn({
+            data: files.map(
+                (file) => ({
+                    fileName:
+                        file.originalname,
+
+                    fileUrl:
+                        `/uploads/${file.filename}`,
+
+                    taskId,
+                }),
+            ),
+        });
+    }
+
+    async deleteAttachment(
+        attachmentId: number,
+        userId: number,
+    ) {
+
+        const attachment =
+            await this.prisma.taskAttachment.findFirst({
+                where: {
+                    id: attachmentId,
+
+                    task: {
+                        userId,
+                    },
+                },
+
+                include: {
+                    task: true,
+                },
+            });
+
+        if (!attachment) {
+            throw new NotFoundException(
+                'Attachment tidak ditemukan',
+            );
+        }
+
+        const filePath =
+            path.join(
+                process.cwd(),
+                attachment.fileUrl.replace(
+                    '/uploads/',
+                    'uploads/',
+                ),
+            );
+
+        if (
+            fs.existsSync(filePath)
+        ) {
+            fs.unlinkSync(filePath);
+        }
+
+        await this.prisma.taskAttachment.delete({
+            where: {
+                id: attachmentId,
+            },
+        });
+
+        return {
+            message:
+                'Attachment berhasil dihapus',
+        };
+    }
+
+    async downloadAttachment(
+        attachmentId: number,
+        userId: number,
+        response: Response,
+    ) {
+
+        const attachment =
+            await this.prisma.taskAttachment.findFirst({
+                where: {
+                    id: attachmentId,
+
+                    task: {
+                        userId,
+                    },
+                },
+            });
+
+        if (!attachment) {
+            throw new NotFoundException(
+                'Attachment tidak ditemukan',
+            );
+        }
+
+        const filePath =
+            path.join(
+                process.cwd(),
+                attachment.fileUrl.replace(
+                    '/uploads/',
+                    'uploads/',
+                ),
+            );
+
+        return response.download(
+            filePath,
+            attachment.fileName,
+        );
     }
 }
