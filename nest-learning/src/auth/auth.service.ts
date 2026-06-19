@@ -35,13 +35,11 @@ export class AuthService {
 
         return this.prisma.user.create({
             data: {
-                name: dto.name,
                 email: dto.email,
                 password: hashedPassword,
             },
             select: {
                 id: true,
-                name: true,
                 email: true,
             },
         });
