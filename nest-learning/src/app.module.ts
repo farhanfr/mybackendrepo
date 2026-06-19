@@ -6,12 +6,34 @@ import { ProductsModule } from './products/products.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
+import { ServeStaticModule }
+  from '@nestjs/serve-static';
+import { join } from 'path';
+import { UploadsModule } from './uploads/uploads.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
-  imports: [ConfigModule.forRoot({
-    isGlobal: true,
-  }), ProductsModule, PrismaModule, AuthModule, TasksModule],
+  imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 5,
+      },
+    ]),
+    ServeStaticModule.forRoot({
+      rootPath: join(
+        process.cwd(),
+        'uploads',
+      ),
+      serveRoot: '/uploads',
+    }), ConfigModule.forRoot({
+      isGlobal: true,
+    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, {
+    provide: APP_GUARD,
+    useClass: ThrottlerGuard,
+  },],
 })
 export class AppModule { }

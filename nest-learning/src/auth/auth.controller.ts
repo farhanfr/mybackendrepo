@@ -18,6 +18,7 @@ import {
     ApiTags,
 } from '@nestjs/swagger';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -33,6 +34,12 @@ export class AuthController {
         return this.authService.register(dto);
     }
 
+    @Throttle({
+  default: {
+    limit: 3,
+    ttl: 60000,
+  },
+})
     @Post('login')
     login(
         @Body() dto: LoginDto,
