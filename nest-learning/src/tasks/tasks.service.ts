@@ -45,7 +45,7 @@ export class TasksService {
 
         const where = {
             userId,
-
+            deletedAt: null,
             ...(search && {
                 title: {
                     contains: search,
@@ -125,21 +125,10 @@ export class TasksService {
         taskId: number,
         userId: number,
     ) {
-        const task =
-            await this.prisma.task.findFirst({
-                where: {
-                    id: taskId,
-                    userId,
-                },
-            });
-
-        if (!task) {
-            throw new NotFoundException(
-                'Task tidak ditemukan',
-            );
-        }
-
-        return task;
+        return this.findTaskOrThrow(
+            taskId,
+            userId,
+        );
     }
 
     async update(
@@ -147,19 +136,10 @@ export class TasksService {
         userId: number,
         dto: UpdateTaskDto,
     ) {
-        const task =
-            await this.prisma.task.findFirst({
-                where: {
-                    id: taskId,
-                    userId,
-                },
-            });
-
-        if (!task) {
-            throw new NotFoundException(
-                'Task tidak ditemukan',
-            );
-        }
+        await this.findTaskOrThrow(
+            taskId,
+            userId,
+        );
 
         return this.prisma.task.update({
             where: {
@@ -173,11 +153,75 @@ export class TasksService {
         taskId: number,
         userId: number,
     ) {
+        await this.findTaskOrThrow(
+            taskId,
+            userId,
+        );
+
+        await this.prisma.task.update({
+            where: {
+                id: taskId,
+            },
+
+            data: {
+                deletedAt: new Date(),
+            },
+        });
+
+        return {
+            message:
+                'Task berhasil dihapus',
+        };
+    }
+
+    async createWithTransaction(
+        userId: number,
+        dto: CreateTaskDto,
+    ) {
+        return this.prisma.$transaction(
+            async (tx) => {
+
+                const task =
+                    await tx.task.create({
+                        data: {
+                            title: dto.title,
+                            description:
+                                dto.description,
+
+                            user: {
+                                connect: {
+                                    id: userId,
+                                },
+                            },
+                        },
+                    });
+
+                await tx.user.update({
+                    where: {
+                        id: userId,
+                    },
+                    data: {
+                        updatedAt: new Date(),
+                    },
+                });
+
+                return task;
+            },
+        );
+    }
+
+    async restore(
+        taskId: number,
+        userId: number,
+    ) {
         const task =
             await this.prisma.task.findFirst({
                 where: {
                     id: taskId,
                     userId,
+                    NOT: {
+                        deletedAt: null,
+                    },
                 },
             });
 
@@ -187,15 +231,35 @@ export class TasksService {
             );
         }
 
-        await this.prisma.task.delete({
+        return this.prisma.task.update({
             where: {
                 id: taskId,
             },
+            data: {
+                deletedAt: null,
+            },
         });
+    }
 
-        return {
-            message:
-                'Task berhasil dihapus',
-        };
+    private async findTaskOrThrow(
+        taskId: number,
+        userId: number,
+    ) {
+        const task =
+            await this.prisma.task.findFirst({
+                where: {
+                    id: taskId,
+                    userId,
+                    deletedAt: null,
+                },
+            });
+
+        if (!task) {
+            throw new NotFoundException(
+                'Task tidak ditemukan',
+            );
+        }
+
+        return task;
     }
 }

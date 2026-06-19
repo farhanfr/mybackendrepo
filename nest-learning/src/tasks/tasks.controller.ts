@@ -46,7 +46,7 @@ export class TasksController {
         @Req() req: any,
         @Body() dto: CreateTaskDto,
     ) {
-        return this.tasksService.create(
+        return this.tasksService.createWithTransaction(
             req.user.userId,
             dto,
         );
@@ -119,6 +119,23 @@ export class TasksController {
         @Req() req: any,
     ) {
         return this.tasksService.remove(
+            id,
+            req.user.userId,
+        );
+    }
+
+    @Patch(':id/restore')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({
+        summary: 'Restore task',
+    })
+    restore(
+        @Param('id', ParseIntPipe)
+        id: number,
+
+        @Req() req: any,
+    ) {
+        return this.tasksService.restore(
             id,
             req.user.userId,
         );
