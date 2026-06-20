@@ -30,6 +30,7 @@ import { extname } from 'path';
 import { UploadsService } from './uploads.service';
 
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { multerOptions } from 'src/common/uploads/multer.config';
 
 @ApiTags('Uploads')
 @Controller('uploads')
@@ -55,27 +56,7 @@ export class UploadsController {
     },
   })
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-
-        filename: (
-          req,
-          file,
-          callback,
-        ) => {
-          const uniqueName =
-            `${uuidv4()}${extname(
-              file.originalname,
-            )}`;
-
-          callback(
-            null,
-            uniqueName,
-          );
-        },
-      }),
-    }),
+    FileInterceptor('file', multerOptions),
   )
   uploadFile(
     @UploadedFile(
@@ -125,27 +106,7 @@ export class UploadsController {
     },
   })
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-
-        filename: (
-          req,
-          file,
-          callback,
-        ) => {
-          const uniqueName =
-            `${uuidv4()}${extname(
-              file.originalname,
-            )}`;
-
-          callback(
-            null,
-            uniqueName,
-          );
-        },
-      }),
-    }),
+    FileInterceptor('file', multerOptions),
   )
   uploadAvatar(
     @Req() req: any,

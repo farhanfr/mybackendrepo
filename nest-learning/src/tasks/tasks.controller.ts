@@ -42,6 +42,8 @@ import { TaskQueryDto } from './dto/task-query.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import type { Response } from 'express';
+import { MAX_FILE_COUNT } from 'src/common/uploads/upload.constants';
+import { multerOptions } from 'src/common/uploads/multer.config';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -176,30 +178,8 @@ export class TasksController {
     @UseInterceptors(
         FilesInterceptor(
             'files',
-            10,
-            {
-                storage: diskStorage({
-                    destination:
-                        './uploads',
-
-                    filename: (
-                        req,
-                        file,
-                        callback,
-                    ) => {
-
-                        const uniqueName =
-                            `${uuidv4()}${extname(
-                                file.originalname,
-                            )}`;
-
-                        callback(
-                            null,
-                            uniqueName,
-                        );
-                    },
-                }),
-            },
+            MAX_FILE_COUNT,
+            multerOptions,
         ),
     )
     uploadAttachments(
@@ -241,29 +221,29 @@ export class TasksController {
     }
 
     @Get('attachments/:attachmentId/download')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@ApiOperation({
-  summary:
-    'Download attachment',
-})
-downloadAttachment(
-  @Param(
-    'attachmentId',
-    ParseIntPipe,
-  )
-  attachmentId: number,
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({
+        summary:
+            'Download attachment',
+    })
+    downloadAttachment(
+        @Param(
+            'attachmentId',
+            ParseIntPipe,
+        )
+        attachmentId: number,
 
-  @Req() req: any,
+        @Req() req: any,
 
-  @Res()
-  response: Response,
-) {
-  return this.tasksService
-    .downloadAttachment(
-      attachmentId,
-      req.user.userId,
-      response,
-    );
-}
+        @Res()
+        response: Response,
+    ) {
+        return this.tasksService
+            .downloadAttachment(
+                attachmentId,
+                req.user.userId,
+                response,
+            );
+    }
 }
