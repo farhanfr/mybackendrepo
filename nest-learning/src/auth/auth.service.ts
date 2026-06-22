@@ -6,6 +6,10 @@ import { RegisterDto } from './dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
+import { MailService } from 'src/mail/mail.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +17,7 @@ export class AuthService {
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly config: ConfigService,
+        private readonly mailService: MailService,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -194,6 +199,57 @@ export class AuthService {
 
         return {
             message: 'Logout berhasil',
+        };
+    }
+
+    async forgotPassword(
+        dto: ForgotPasswordDto,
+    ) {
+
+        const user =
+            await this.prisma.user.findUnique({
+                where: {
+                    email: dto.email,
+                },
+            });
+
+        if (!user) {
+            return {
+                message:
+                    'Jika email terdaftar, link reset akan dikirim',
+            };
+        }
+
+        const resetToken =
+            uuidv4();
+
+        const expiresAt =
+            new Date(
+                Date.now() +
+                1000 * 60 * 15,
+            );
+
+        await this.prisma.user.update({
+            where: {
+                id: user.id,
+            },
+
+            data: {
+                resetToken,
+                resetTokenExpiresAt:
+                    expiresAt,
+            },
+        });
+
+        await this.mailService
+            .sendResetPasswordEmail(
+                user.email,
+                resetToken,
+            );
+
+        return {
+            message:
+                'Jika email terdaftar, link reset akan dikirim',
         };
     }
 

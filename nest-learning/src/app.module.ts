@@ -12,6 +12,7 @@ import { join } from 'path';
 import { UploadsModule } from './uploads/uploads.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { APP_GUARD } from '@nestjs/core';
       serveRoot: '/uploads',
     }), ConfigModule.forRoot({
       isGlobal: true,
-    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule],
+    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule],
   controllers: [AppController],
   providers: [AppService, {
     provide: APP_GUARD,

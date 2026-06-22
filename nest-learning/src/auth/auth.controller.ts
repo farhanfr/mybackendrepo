@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Throttle } from '@nestjs/throttler';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -35,11 +36,11 @@ export class AuthController {
     }
 
     @Throttle({
-  default: {
-    limit: 3,
-    ttl: 60000,
-  },
-})
+        default: {
+            limit: 3,
+            ttl: 60000,
+        },
+    })
     @Post('login')
     login(
         @Body() dto: LoginDto,
@@ -76,6 +77,15 @@ export class AuthController {
         return this.authService.logout(
             req.user.userId,
         );
+    }
+
+    @Post('forgot-password')
+    forgotPassword(
+        @Body()
+        dto: ForgotPasswordDto,
+    ) {
+        return this.authService
+            .forgotPassword(dto);
     }
 
 }
