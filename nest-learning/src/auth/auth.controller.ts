@@ -15,11 +15,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 import {
     ApiBearerAuth,
+    ApiOperation,
+    ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Throttle } from '@nestjs/throttler';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -80,12 +83,39 @@ export class AuthController {
     }
 
     @Post('forgot-password')
+    @ApiOperation({
+        summary:
+            'Forgot password',
+    })
+    @ApiResponse({
+        status: 201,
+        description:
+            'Reset password email sent',
+    })
     forgotPassword(
         @Body()
         dto: ForgotPasswordDto,
     ) {
         return this.authService
             .forgotPassword(dto);
+    }
+
+    @Post('reset-password')
+    @ApiOperation({
+        summary:
+            'Reset password',
+    })
+    @ApiResponse({
+        status: 201,
+        description:
+            'Password reset successfully',
+    })
+    resetPassword(
+        @Body()
+        dto: ResetPasswordDto,
+    ) {
+        return this.authService
+            .resetPassword(dto);
     }
 
 }

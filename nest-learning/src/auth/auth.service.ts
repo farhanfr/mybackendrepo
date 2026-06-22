@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -10,6 +10,7 @@ import { MailService } from 'src/mail/mail.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 import { v4 as uuidv4 } from 'uuid';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -250,6 +251,62 @@ export class AuthService {
         return {
             message:
                 'Jika email terdaftar, link reset akan dikirim',
+        };
+    }
+
+    async resetPassword(
+        dto: ResetPasswordDto,
+    ) {
+
+        const user =
+            await this.prisma.user.findFirst({
+                where: {
+                    resetToken:
+                        dto.token,
+                },
+            });
+
+        if (!user) {
+            throw new BadRequestException(
+                'Token tidak valid',
+            );
+        }
+
+        if (
+            !user.resetTokenExpiresAt ||
+            user.resetTokenExpiresAt <
+            new Date()
+        ) {
+            throw new BadRequestException(
+                'Token sudah kadaluarsa',
+            );
+        }
+
+        const hashedPassword =
+            await bcrypt.hash(
+                dto.password,
+                10,
+            );
+
+        await this.prisma.user.update({
+            where: {
+                id: user.id,
+            },
+
+            data: {
+                password:
+                    hashedPassword,
+
+                resetToken: null,
+
+                resetTokenExpiresAt:
+                    null,
+            },
+        });
+
+        return {
+            message:
+                'Password berhasil direset',
         };
     }
 
