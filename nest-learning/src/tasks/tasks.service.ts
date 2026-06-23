@@ -4,36 +4,45 @@ import * as path from 'path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { Response }
-  from 'express';
+    from 'express';
 
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskQueryDto } from 'src/tasks/dto/task-query.dto';
+import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class TasksService {
     constructor(
         private readonly prisma: PrismaService,
+        private readonly redisService: RedisService,
     ) { }
 
     async create(
         userId: number,
         dto: CreateTaskDto,
     ) {
-        return this.prisma.task.create({
-            data: {
-                title: dto.title,
-                description: dto.description,
+        const task =
+            await this.prisma.task.create({
+                data: {
+                    title: dto.title,
+                    description: dto.description,
 
-                user: {
-                    connect: {
-                        id: userId,
+                    user: {
+                        connect: {
+                            id: userId,
+                        },
                     },
                 },
-            },
-        });
+            });
+
+        await this.clearTasksCache(
+            userId,
+        );
+
+        return task;
     }
 
     async findAll(
@@ -49,9 +58,22 @@ export class TasksService {
             order = 'desc',
         } = query;
 
+        const cacheKey =
+            `tasks:${userId}:${page}:${limit}:${search ?? ''}:${completed ?? ''}:${sort}:${order}`;
+
+        const cachedTasks =
+            await this.redisService.getJson(cacheKey);
+
+        if (cachedTasks) {
+            console.log('FROM REDIS');
+
+            return cachedTasks;
+        }
+
         const where = {
             userId,
             deletedAt: null,
+
             ...(search && {
                 title: {
                     contains: search,
@@ -60,9 +82,12 @@ export class TasksService {
             }),
 
             ...(completed !== undefined && {
-                completed: completed === 'true',
+                completed:
+                    completed === 'true',
             }),
         };
+
+        console.log('FROM DATABASE');
 
         const [tasks, total] =
             await Promise.all([
@@ -73,7 +98,9 @@ export class TasksService {
                         [sort]: order,
                     },
 
-                    skip: (page - 1) * limit,
+                    skip:
+                        (page - 1) * limit,
+
                     take: limit,
                 }),
 
@@ -82,7 +109,7 @@ export class TasksService {
                 }),
             ]);
 
-        return {
+        const result = {
             data: tasks,
 
             meta: {
@@ -90,9 +117,10 @@ export class TasksService {
                 limit,
                 total,
 
-                totalPages: Math.ceil(
-                    total / limit,
-                ),
+                totalPages:
+                    Math.ceil(
+                        total / limit,
+                    ),
 
                 hasNextPage:
                     page * limit < total,
@@ -102,29 +130,13 @@ export class TasksService {
             },
         };
 
-        // return this.prisma.task.findMany({
-        //     where: {
-        //         userId,
+        await this.redisService.setJson(
+            cacheKey,
+            result,
+            60,
+        );
 
-        //         ...(search && {
-        //             title: {
-        //                 contains: search,
-        //                 mode: 'insensitive',
-        //             },
-        //         }),
-
-        //         ...(completed !== undefined && {
-        //             completed: completed === 'true',
-        //         }),
-        //     },
-
-        //     orderBy: {
-        //         [sort]: order,
-        //     },
-
-        //     skip: (page - 1) * limit,
-        //     take: limit,
-        // });
+        return result;
     }
 
     async findOne(
@@ -154,12 +166,19 @@ export class TasksService {
             userId,
         );
 
-        return this.prisma.task.update({
-            where: {
-                id: taskId,
-            },
-            data: dto,
-        });
+        const task =
+            await this.prisma.task.update({
+                where: {
+                    id: taskId,
+                },
+                data: dto,
+            });
+
+        await this.clearTasksCache(
+            userId,
+        );
+
+        return task;
     }
 
     async remove(
@@ -171,27 +190,28 @@ export class TasksService {
             userId,
         );
 
-        await this.prisma.task.update({
-            where: {
-                id: taskId,
-            },
+        const task =
+            await this.prisma.task.update({
+                where: {
+                    id: taskId,
+                },
+                data: {
+                    deletedAt: new Date(),
+                },
+            });
 
-            data: {
-                deletedAt: new Date(),
-            },
-        });
+        await this.clearTasksCache(
+            userId,
+        );
 
-        return {
-            message:
-                'Task berhasil dihapus',
-        };
+        return task;
     }
 
     async createWithTransaction(
         userId: number,
         dto: CreateTaskDto,
     ) {
-        return this.prisma.$transaction(
+        const task = await this.prisma.$transaction(
             async (tx) => {
 
                 const task =
@@ -221,6 +241,12 @@ export class TasksService {
                 return task;
             },
         );
+
+        await this.clearTasksCache(
+            userId,
+        );
+
+        return task;
     }
 
     async restore(
@@ -244,14 +270,30 @@ export class TasksService {
             );
         }
 
-        return this.prisma.task.update({
-            where: {
-                id: taskId,
-            },
-            data: {
-                deletedAt: null,
-            },
-        });
+        const restoredTask =
+            await this.prisma.task.update({
+                where: {
+                    id: taskId,
+                },
+                data: {
+                    deletedAt: null,
+                },
+            });
+
+        await this.clearTasksCache(
+            userId,
+        );
+
+        return restoredTask;
+    }
+
+    private async clearTasksCache(
+        userId: number,
+    ) {
+        console.log('CACHE CLEARED');
+        await this.redisService.deleteByPattern(
+            `tasks:${userId}:*`,
+        );
     }
 
     private async findTaskOrThrow(
@@ -287,19 +329,26 @@ export class TasksService {
             userId,
         );
 
-        return this.prisma.taskAttachment.createManyAndReturn({
-            data: files.map(
-                (file) => ({
-                    fileName:
-                        file.originalname,
+        const attachments =
+            await this.prisma.taskAttachment.createManyAndReturn({
+                data: files.map(
+                    (file) => ({
+                        fileName:
+                            file.originalname,
 
-                    fileUrl:
-                        `/uploads/${file.filename}`,
+                        fileUrl:
+                            `/uploads/${file.filename}`,
 
-                    taskId,
-                }),
-            ),
-        });
+                        taskId,
+                    }),
+                ),
+            });
+
+        await this.clearTasksCache(
+            userId,
+        );
+
+        return attachments;
     }
 
     async deleteAttachment(
@@ -344,10 +393,14 @@ export class TasksService {
         }
 
         await this.prisma.taskAttachment.delete({
-            where: {
-                id: attachmentId,
-            },
-        });
+  where: {
+    id: attachmentId,
+  },
+});
+
+await this.clearTasksCache(
+  userId,
+);
 
         return {
             message:

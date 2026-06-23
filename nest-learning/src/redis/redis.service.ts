@@ -54,4 +54,47 @@ export class RedisService implements OnModuleInit {
   ) {
     return this.redis.del(key);
   }
+
+  async setJson(
+    key: string,
+    value: any,
+    ttl: number,
+  ) {
+    return this.redis.set(
+      key,
+      JSON.stringify(value),
+      'EX',
+      ttl,
+    );
+  }
+
+  async getJson<T>(
+    key: string,
+  ): Promise<T | null> {
+
+    const data =
+      await this.redis.get(key);
+
+    if (!data) {
+      return null;
+    }
+
+    return JSON.parse(data);
+  }
+
+  async deleteByPattern(
+  pattern: string,
+) {
+  const keys =
+    await this.redis.keys(
+      pattern,
+    );
+
+  if (keys.length > 0) {
+    await this.redis.del(
+      ...keys,
+    );
+  }
+}
+
 }
