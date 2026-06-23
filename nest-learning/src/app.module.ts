@@ -13,6 +13,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { MailModule } from './mail/mail.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { MailModule } from './mail/mail.module';
       serveRoot: '/uploads',
     }), ConfigModule.forRoot({
       isGlobal: true,
-    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule],
+    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule, RedisModule],
   controllers: [AppController],
   providers: [AppService, {
     provide: APP_GUARD,
