@@ -14,6 +14,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { MailModule } from './mail/mail.module';
 import { RedisModule } from './redis/redis.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { RedisModule } from './redis/redis.module';
       serveRoot: '/uploads',
     }), ConfigModule.forRoot({
       isGlobal: true,
-    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule, RedisModule],
+    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule, RedisModule, QueueModule],
   controllers: [AppController],
   providers: [AppService, {
     provide: APP_GUARD,

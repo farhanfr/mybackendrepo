@@ -11,6 +11,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 import { v4 as uuidv4 } from 'uuid';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { QueueService } from 'src/queue/queue.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly config: ConfigService,
         private readonly mailService: MailService,
+        private readonly queueService: QueueService,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -242,8 +244,8 @@ export class AuthService {
             },
         });
 
-        await this.mailService
-            .sendResetPasswordEmail(
+        await this.queueService
+            .addResetPasswordJob(
                 user.email,
                 resetToken,
             );

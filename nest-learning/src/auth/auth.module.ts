@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from 'src/mail/mail.module';
+import { QueueModule } from 'src/queue/queue.module';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { MailModule } from 'src/mail/mail.module';
         expiresIn: '1h',
       },
     }),
-    MailModule
+    MailModule, QueueModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
