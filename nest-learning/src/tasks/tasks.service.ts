@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
 import { Response }
     from 'express';
@@ -15,6 +15,9 @@ import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class TasksService {
+
+     private readonly logger =new Logger(TasksService.name)
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly redisService: RedisService,
@@ -65,7 +68,7 @@ export class TasksService {
             await this.redisService.getJson(cacheKey);
 
         if (cachedTasks) {
-            console.log('FROM REDIS');
+            this.logger.log('Fetching tasks from redis cache');
 
             return cachedTasks;
         }
@@ -87,7 +90,7 @@ export class TasksService {
             }),
         };
 
-        console.log('FROM DATABASE');
+        this.logger.log('Fetching tasks from database');
 
         const [tasks, total] =
             await Promise.all([
@@ -143,17 +146,21 @@ export class TasksService {
         taskId: number,
         userId: number,
     ) {
-        return this.prisma.task.findFirst({
-            where: {
-                id: taskId,
-                userId,
-                deletedAt: null,
-            },
+        await this.findTaskOrThrow(
+    taskId,
+    userId,
+  );
 
-            include: {
-                attachments: true,
-            },
-        });
+  return this.prisma.task.findFirst({
+    where: {
+      id: taskId,
+      userId,
+      deletedAt: null,
+    },
+    include: {
+      attachments: true,
+    },
+  });
     }
 
     async update(

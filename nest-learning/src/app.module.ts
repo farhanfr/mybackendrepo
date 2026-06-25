@@ -15,6 +15,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { MailModule } from './mail/mail.module';
 import { RedisModule } from './redis/redis.module';
 import { QueueModule } from './queue/queue.module';
+import { LoggerModule } from './logger/logger.module';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { QueueModule } from './queue/queue.module';
       serveRoot: '/uploads',
     }), ConfigModule.forRoot({
       isGlobal: true,
-    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule, RedisModule, QueueModule],
+    }), ProductsModule, PrismaModule, AuthModule, TasksModule, UploadsModule, MailModule, RedisModule, QueueModule, LoggerModule],
   controllers: [AppController],
   providers: [AppService, {
     provide: APP_GUARD,

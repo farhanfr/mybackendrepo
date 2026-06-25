@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 
 import { Request, Response } from 'express';
@@ -12,6 +13,9 @@ import { Request, Response } from 'express';
 export class HttpExceptionFilter
   implements ExceptionFilter
 {
+  private readonly logger =
+    new Logger(HttpExceptionFilter.name);
+
   catch(
     exception: unknown,
     host: ArgumentsHost,
@@ -59,6 +63,22 @@ export class HttpExceptionFilter
         : String(
             exceptionResponse.message,
           );
+    }
+
+    const logMessage =
+      `${request.method} ${request.url} - ${message}`;
+
+    if (status >= 500) {
+      this.logger.error(
+        logMessage,
+        exception instanceof Error
+          ? exception.stack
+          : undefined,
+      );
+    } else {
+      this.logger.warn(
+        logMessage,
+      );
     }
 
     response.status(status).json({
