@@ -30,6 +30,8 @@ model User {
 
   avatar                String?
 
+  phone                 String?
+
   refreshToken          String?
 
   resetToken            String?

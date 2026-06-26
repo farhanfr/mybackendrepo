@@ -21,7 +21,7 @@ import { MailModule }
 
     BullModule.forRoot({
       connection: {
-        host: 'localhost',
+        host: process.env.REDIS_HOST,
         port: 6379,
       },
     }),
